@@ -52,15 +52,45 @@ public class Robot extends IterativeRobot {
 	private static final double DRIVE_STRAIGHT_BASE_POWER = 0.6;
 	private static final double ROTATE_BASE_POWER = 0.3;
 	
-	private static final int START_TO_SWITCH = 1;
-		private static final int DO_NOTHING = 0;
-		private int state = DO_NOTHING;
-		private int subState = 0;
-		private double startToSwitchInitialDelay = 1;
+	private static final double START_TO_SWITCH_TIME = 3;
+	private static final double START_TO_SCALE_TIME = 7;
+	private static final double SWITCH_TO_SCALE_TIME = 4;
+	private static final double SWITCH_SIDES_TIME = 6;
+	private static final double WALL_TO_SWITCH_MIDWAY_TIME = 1.2;
 	
+	//Autonomous Objectives
+	private int currentObjective;
+	private static final int DELAY = 0;
+	private static final int SCORE_ON_SWITCH = 1;
+	private static final int SCORE_ON_SCALE = 2;
+	private static final int PICK_UP_POWER_CUBE = 3;
+	private static final int CROSS_AUTO_LINE = 4;
+	private static final int STOP = 5;
+	
+	//Autonomous Locations
+	private static final int LEFT_START = 1; 
+	private static final int CENTER_START = 2;
+	private static final int RIGHT_START = 3;
+	private static final int LEFT_SWITCH_SIDE_MIDWAY = 4;
+	private static final int RIGHT_SWITCH_SIDE_MIDWAY = 5;
+	private static final int LEFT_SWITCH_SIDE = 6;
+	private static final int RIGHT_SWITCH_SIDE = 7;
+	private static final int BLOCK_1 = 8; //Leftmost
+	private static final int BLOCK_2 = 9;
+	private static final int BLOCK_3 = 10;
+	private static final int BLOCK_4 = 11;
+	private static final int BLOCK_5 = 12;
+	private static final int BLOCK_6 = 13; //Rightmost
+	private static final int SCALE_SWITCH_MIDWAY = 14; 
+	private static final int RIGHT_SWITCH_SCALE_MIDWAY = 15;
+	private static final int LEFT_SCALE_SIDE = 16;
+	private static final int RIGHT_SCALE_SIDE = 17;
+	
+	//Robot Mechanisms and Controls
 	ProgrammingRobotConfiguration robotConfiguration;
 	ProgrammingRobotControlScheme robotControlScheme;
 	
+	//Autonomous Selection
 	SmartDashboard dashboard;
 	SendableChooser<String> autonomousChooser;
 	SendableChooser<String> robotPositionChooser;
@@ -156,23 +186,18 @@ public class Robot extends IterativeRobot {
 		autonomousCommandPoint = 0;
 		autonomousProgramComplete = false;
 		
-		//if(autonomousChooser.getSelected().equals("Drive and Turn")) driveAndTurn();
-		//else if(autonomousChooser.getSelected().equals("Rotate Ninety Degrees")) rotate(90);
-		//else if(autonomousChooser.getSelected().equals("Cross Auto Line")) crossAutoLine(location, switchSides);
-		if(autonomousChooser.getSelected().equals("Drive To Switch And Drop")) driveToSwitchAndDrop(location, deriveScoringPosition(gameData.charAt(0)), switchSides);
-		//else if(autonomousChooser.getSelected().equals("Drive To Scale And Drop")) driveToScaleAndDrop(location, deriveScoringPosition(gameData.charAt(1)), switchSides);
+		if(autonomousChooser.getSelected().equals("Cross Auto Line")) crossAutoLine(location, switchSides);
+		else if(autonomousChooser.getSelected().equals("Drive To Switch And Drop")) driveToSwitchAndDrop(location, deriveScoringPosition(gameData.charAt(0)), switchSides);
+		else if(autonomousChooser.getSelected().equals("Drive To Scale And Drop")) driveToScaleAndDrop(location, deriveScoringPosition(gameData.charAt(1)), switchSides);
+		else if(autonomousChooser.getSelected().equals("Cycle Through Objectives"))
+			cycleThroughObjectives(location, deriveScoringPosition(gameData.charAt(0)), deriveScoringPosition(gameData.charAt(1)), switchSides, 0);
 		
 		if(autonomousCommands.size() > 0) currentCommand = autonomousCommands.get(autonomousCommandPoint);
-		else currentCommand = new DoNothingCommand(Double.POSITIVE_INFINITY);
+		else autonomousProgramComplete = true;
 		
 		System.out.println("autonomousCommands.size() = " + autonomousCommands.size());
 	}
 
-	private void driveAndTurn() {
-		driveWithGyroTime(3);
-		rotate(90);
-	}
-	
 	private void crossAutoLine(int robotLocation, boolean switchSides) {
 		driveWithGyroTime(4);
 	}
@@ -224,6 +249,36 @@ public class Robot extends IterativeRobot {
 			}
 		}
 		chassis.drive(0, 0);
+	}
+	
+	private void routeToSwitch(int startingLocation, int currentLocation, int scoringPosition, boolean switchSides) {
+		if(currentLocation == LEFT_START && startingLocation == scoringPosition) {
+			autonomousCommands.add(new RotateCommand(0));
+			autonomousCommands.add(new DriveStraightCommand(START_TO_SWITCH_TIME, 0));
+			autonomousCommands.add(new RotateCommand(90));
+			autonomousCommands.add(new DriveStraightCommand(1, 90));
+		} else if(currentLocation == CENTER_START && startingLocation == scoringPosition) {
+			autonomousCommands.add(new RotateCommand(0));
+			autonomousCommands.add(new DriveStraightCommand(WALL_TO_SWITCH_MIDWAY_TIME, 0));
+			int rotation = (scoringPosition == LEFT) ? -90 : 90;
+			autonomousCommands.add(new RotateCommand(rotation));
+			autonomousCommands.add(new DriveStraightCommand(SWITCH_SIDES_TIME / 2, rotation));
+		} else if(currentLocation == RIGHT_START && startingLocation == scoringPosition) {
+			autonomousCommands.add(new RotateCommand(0));
+			autonomousCommands.add(new DriveStraightCommand(START_TO_SWITCH_TIME, 0));
+			autonomousCommands.add(new RotateCommand(-90));
+			autonomousCommands.add(new DriveStraightCommand(1, -90));
+		} else if(currentLocation == LEFT_SCALE_SIDE && startingLocation == scoringPosition) {
+			autonomousCommands.add(new RotateCommand(180));
+			autonomousCommands.add(new DriveStraightCommand(SWITCH_TO_SCALE_TIME, 0));
+			autonomousCommands.add(new RotateCommand(90));
+			autonomousCommands.add(new DriveStraightCommand(1, 90));
+		} else if(currentLocation == RIGHT_SCALE_SIDE && startingLocation == scoringPosition) {
+			autonomousCommands.add(new RotateCommand(180));
+			autonomousCommands.add(new DriveStraightCommand(SWITCH_TO_SCALE_TIME, 0));
+			autonomousCommands.add(new RotateCommand(-90));
+			autonomousCommands.add(new DriveStraightCommand(1, -90));
+		}
 	}
 	
 	private void driveToSwitchAndDrop(int location, int scoringPosition, boolean switchSides) {
@@ -291,6 +346,12 @@ public class Robot extends IterativeRobot {
 			rotate(-rotation); //Turn to face the switch
 			driveWithGyroTime(1); //Run into the switch
 		}
+	}
+	
+	public void cycleThroughObjectives(int location, int switchScoringPosition, int scaleScoringPosition, boolean switchSides, double delay) {
+		//Delay
+		Timer.delay(delay);
+		
 	}
 	
 	public void autonomousPeriodic() {
